@@ -67,12 +67,14 @@ def imputePCA(X,ncp=2,scale=True,method=['Regularized','EM'],roww=[],coeffridge=
 		return result
 
 ### Impute function done now for rest of impute PCA function
-	if hasattr(X,'shape'):
-		X = X.astype(X,float)
+	if hasattr(X,'values'):
+		X = X.values.astype(float)
+	elif hasattr(X,'shape'):
+		X = X.astype(float)
 	elif hasattr(X,'pop'):
 		X = np.array(X,float)
 	else:
-		print "X must be an array"
+		print "X must be a list, pandas or numpy array"
 		return
 	method = method[0]
 	obj = np.inf
