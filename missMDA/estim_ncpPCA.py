@@ -51,28 +51,33 @@ def estim_ncpPCA(X,ncpmin=0,ncpmax=5,method='regularized',scale=True,cv='gcv',nb
 
 			it = np.nditer(X,flags=['multi_index'])
 			while not it.finished:
-				mXNA = ma.masked_array(X,copy=True,mask=np.isnan(X))
-				mXNA.mask[it.multi_index[0],it.multi_index[1]]=True
-				if nbaxes==0:
-					Xhat[it.multi_index[0],it.multi_index[1]] = ma.mean(mXNA,it.multi_index[1])
-				else:
-					Xhat[it.multi_index[0],it.multi_index[1]] = imputePCA(mXNA.data,ncp=nbaxes,threshold=threshold,method=method,scale=scale)[0][it.multi_index[0],it.multi_index[1]]
+				if ~np.isnan(X[it.multi_index[0],it.multi_index[1]]):
+					mXNA = ma.masked_array(X,copy=True,mask=np.isnan(X))
+					mXNA.mask[it.multi_index[0],it.multi_index[1]]=True
+					mXNA.data[it.multi_index[0],it.multi_index[1]]=None
+					if nbaxes==0:
+						Xhat[it.multi_index[0],it.multi_index[1]] = ma.mean(mXNA[:,it.multi_index[1]])
+					else:
+						Xhat[it.multi_index[0],it.multi_index[1]] = imputePCA(mXNA.data,ncp=nbaxes,threshold=threshold,method=method,scale=scale)[0][it.multi_index[0],it.multi_index[1]]
 				it.iternext()
 			res.append(((Xhat-X)**2).mean())
-		result = [np.argmin(res)+ncpmin-1,res]
+		result = [np.argmin(res)+ncpmin,res]
 
 
 	if cv == 'kfold':
 		res = np.empty((ncpmax-ncpmin+1,nbsim))
 		for sim in range(1,nbsim):
 			mXNA = ma.masked_array(X,copy=True,mask=np.isnan(X))
-			mXNA.mask[np.random.random_integers(0,mXNA.shape[0]-1,mXNA.shape[0]),np.random.random_integers(0,mXNA.shape[1]-1,mXNA.shape[1])]=True
+			rowsRandom = np.random.random_integers(0,mXNA.shape[0]-1,mXNA.shape[0])
+			colsRandom = np.random.random_integers(0,mXNA.shape[1]-1,mXNA.shape[0])
+			mXNA.mask[[rowsRandom,colsRandom]]=True
+			mXNA.data[[rowsRandom,colsRandom]]=None
 			for nbaxes in range(ncpmin,ncpmax+1):
 				if nbaxes==0:
 					Xhat=mXNA.filled(mXNA.mean(axis=0))
 				else:
 					Xhat = imputePCA(mXNA.data,ncp=nbaxes,threshold=threshold,method=method,scale=scale)[0]
 				res[nbaxes-ncpmin,sim] = np.nansum((Xhat-X)**2)
-		resmeans = res.sum(axis=1)
-		result = [np.argmin(res)+ncpmin-1,resmeans]
+		resmeans = res.mean(axis=1)
+		result = [np.argmin(resmeans)+ncpmin,resmeans]
 	return result
